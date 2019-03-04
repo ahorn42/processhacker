@@ -33,6 +33,10 @@
 #include <sysinfo.h>
 #include <phsettings.h>
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+
 static VOID NTAPI PerformanceUpdateHandler(
     _In_opt_ PVOID Parameter,
     _In_opt_ PVOID Context
@@ -42,6 +46,8 @@ static VOID NTAPI PerformanceUpdateHandler(
 
     PostMessage(performanceContext->WindowHandle, WM_PH_PERFORMANCE_UPDATE, 0, 0);
 }
+
+FILE *logFile;
 
 INT_PTR CALLBACK PhpProcessPerformanceDlgProc(
     _In_ HWND hwndDlg,
@@ -54,6 +60,16 @@ INT_PTR CALLBACK PhpProcessPerformanceDlgProc(
     PPH_PROCESS_PROPPAGECONTEXT propPageContext;
     PPH_PROCESS_ITEM processItem;
     PPH_PERFORMANCE_CONTEXT performanceContext;
+
+    // log file name
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    char startTime[20];
+    PPH_STRING logPath;
+    char basePath[256];
+    char fileName[256];
+    char filePath[256];
 
     if (PhPropPageDlgProcHeader(hwndDlg, uMsg, lParam, &propSheetPage, &propPageContext, &processItem))
     {
@@ -106,6 +122,22 @@ INT_PTR CALLBACK PhpProcessPerformanceDlgProc(
             BringWindowToTop(performanceContext->IoGraphHandle);
 
             PhInitializeWindowTheme(hwndDlg, PhEnableThemeSupport);
+
+            // create log file
+            sprintf(startTime, "%02d-%02d-%02d_%02d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+            logPath = PhGetStringSetting(L"PerformanceLogPath");
+            if (logPath->Length > 0) {
+                sprintf(basePath, "%S", logPath->Buffer);
+                sprintf(fileName, "perfLog-%S-%s.log", processItem->ProcessName->Buffer, startTime);
+                sprintf(filePath, "%s\\%s", basePath, fileName);
+
+                logFile = fopen(filePath, "w");
+
+                if (logFile != NULL) {
+                    fprintf(logFile, "[\n");
+                }
+            }
         }
         break;
     case WM_DESTROY:
@@ -119,7 +151,13 @@ INT_PTR CALLBACK PhpProcessPerformanceDlgProc(
                 &performanceContext->ProcessesUpdatedRegistration
                 );
             PhFree(performanceContext);
-        }
+
+            // close log file
+            if (logFile != NULL) {
+                fprintf(logFile, "]");
+                fclose(logFile);
+            }
+        } 
         break;
     case WM_SHOWWINDOW:
         {
@@ -209,6 +247,57 @@ INT_PTR CALLBACK PhpProcessPerformanceDlgProc(
                                     (FLOAT)processItem->VmCounters.PeakPagefileUsage,
                                     drawInfo->LineDataCount
                                     );
+
+                                // write log file
+                                if (logFile != NULL) {
+                                    char currentTime[20];
+                                    sprintf(currentTime, "%02d-%02d-%02d_%02d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                                    fprintf(logFile, "{"
+                                                            "'time': '%s',"
+                                                            "'PrivateUsage': %.2f,"
+                                                            "'CpuUsage': %.2f,"
+                                                            "'ioReadTransferCount': {"
+                                                                "'value': %I64u,"
+                                                                "'delta': %I64u"
+                                                            "},"
+                                                            "'ioReadOpCount': {"
+                                                                "'value': %I64u,"
+                                                                "'delta': %I64u"
+                                                            "},"
+                                                            "'ioOtherTransferCount': {"
+                                                                "'value': %I64u,"
+                                                                "'delta': %I64u"
+                                                            "},"
+                                                            "'ioOtherOpCount': {"
+                                                                "'value': %I64u,"
+                                                                "'delta': %I64u"
+                                                            "},"
+                                                            "'ioWriteTransferCount': {"
+                                                                "'value': %I64u,"
+                                                                "'delta': %I64u"
+                                                            "},"
+                                                            "'ioWriteOpCount': {"
+                                                                "'value': %I64u,"
+                                                                "'delta': %I64u"
+                                                            "}"
+                                                        "},\n",
+                                        currentTime,
+                                        (FLOAT)processItem->VmCounters.PrivateUsage,
+                                        (FLOAT)processItem->CpuUsage,
+                                        processItem->IoReadDelta.Value,
+                                        processItem->IoReadDelta.Delta,
+                                        processItem->IoReadCountDelta.Value,
+                                        processItem->IoReadCountDelta.Delta,
+                                        processItem->IoOtherDelta.Value,
+                                        processItem->IoOtherDelta.Delta,
+                                        processItem->IoOtherCountDelta.Value,
+                                        processItem->IoOtherCountDelta.Delta,
+                                        processItem->IoWriteDelta.Value,
+                                        processItem->IoWriteDelta.Delta,
+                                        processItem->IoWriteCountDelta.Value,
+                                        processItem->IoWriteCountDelta.Delta);
+                                    fflush(logFile);
+                                }
                             }
 
                             performanceContext->PrivateGraphState.Valid = TRUE;
