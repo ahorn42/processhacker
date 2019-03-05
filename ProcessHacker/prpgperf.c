@@ -37,6 +37,8 @@
 #include <stdio.h>
 #include <time.h>
 
+//#include "curl/curl.h"
+
 static VOID NTAPI PerformanceUpdateHandler(
     _In_opt_ PVOID Parameter,
     _In_opt_ PVOID Context
@@ -297,6 +299,34 @@ INT_PTR CALLBACK PhpProcessPerformanceDlgProc(
                                         processItem->IoWriteCountDelta.Value,
                                         processItem->IoWriteCountDelta.Delta);
                                     fflush(logFile);
+
+                                   
+
+                                    //CURL *curl;
+                                    //CURLcode res;
+                                    //curl = curl_easy_init();
+
+                                    //if (curl) {
+                                    //    /*curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8086/write?db=mydb");
+
+                                    //    char curlFields[256];
+                                    //    sprintf(curlFields, "CpuUsage,process=%S value=%.2f", processItem->ProcessName->Buffer, (FLOAT)processItem->CpuUsage);
+
+                                    //    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, curlFields);*/
+
+                                    //    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, FALSE);
+                                    //    curl_easy_setopt(curl, CURLOPT_URL, "http://172.30.110.42:8086/write?db=mydb");
+                                    //    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "cpu_load_short,host=server01,region=us-west value=0.64");
+
+                                    //    res = curl_easy_perform(curl);
+                                    //    if (res == CURLE_OK) {
+
+                                    //    } else {
+
+                                    //    }
+
+                                    //    curl_easy_cleanup(curl);
+                                    //}
                                 }
                             }
 
